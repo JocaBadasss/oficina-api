@@ -15,6 +15,50 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum FuelLevel {
+  RESERVA
+  QUARTO
+  METADE
+  TRES_QUARTOS
+  CHEIO
+}
+
+enum AdblueLevel {
+  VAZIO
+  BAIXO
+  METADE
+  CHEIO
+}
+
+enum TireStatus {
+  RUIM
+  REGULAR
+  BOM
+  NOVO
+}
+
+enum MirrorStatus {
+  OK
+  QUEBRADO
+  RACHADO
+  FALTANDO
+}
+
+enum PaintingStatus {
+  INTACTA
+  ARRANHADA
+  AMASSADA
+  REPARADA
+}
+
+enum ServiceStatus {
+  AGUARDANDO
+  EM_ANDAMENTO
+  FINALIZADO
+}
+
+
+
 model User {
   id        String   @id @default(uuid())
   name      String
@@ -33,4 +77,60 @@ model Client {
   phone     String
   address   String
   createdAt DateTime @default(now())
+  
+  vehicles Vehicle[]
 }
+
+model Vehicle {
+  id        String   @id @default(uuid())
+  clientId  String
+  client    Client   @relation(fields: [clientId], references: [id])
+  plate     String   @unique
+  brand     String
+  model     String
+  year      Int
+  createdAt DateTime @default(now())
+
+  serviceOrders ServiceOrder[]
+}
+
+model ServiceOrder {
+  id             String           @id @default(uuid())
+  vehicleId      String
+  vehicle        Vehicle          @relation(fields: [vehicleId], references: [id])
+  fuelLevel      FuelLevel
+  adblueLevel    AdblueLevel
+  km             Int
+  tireStatus     TireStatus
+  mirrorStatus   MirrorStatus
+  paintingStatus PaintingStatus
+  complaints     String?
+  notes          String?
+  status         ServiceStatus    @default(AGUARDANDO)
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  report         ServiceReport?
+  photos        Photo[]
+}
+
+model ServiceReport {
+  id          String        @id @default(uuid())
+  orderId     String        @unique
+  order       ServiceOrder  @relation(fields: [orderId], references: [id])
+  description String
+  createdAt   DateTime      @default(now())
+}
+
+model Photo {
+  id         String        @id @default(uuid())
+  orderId    String
+  order      ServiceOrder  @relation(fields: [orderId], references: [id])
+  filename   String
+  path       String
+  uploadedAt DateTime      @default(now())
+}
+
+
+
+

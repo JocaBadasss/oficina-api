@@ -3,6 +3,7 @@ import {
   Catch,
   ArgumentsHost,
   HttpStatus,
+  HttpException,
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { Request, Response } from 'express';
@@ -14,9 +15,8 @@ export class PrismaExceptionFilter implements ExceptionFilter {
     const response = ctx.getResponse<Response>();
     const request = ctx.getRequest<Request>();
 
-    // Tratando erros do Prisma
+    // 🔒 Erro padrão do Prisma
     if (exception instanceof Prisma.PrismaClientKnownRequestError) {
-      // Erro de campo único duplicado
       if (exception.code === 'P2002') {
         const field = (exception.meta?.target as string[])[0] || 'campo';
 
@@ -24,14 +24,13 @@ export class PrismaExceptionFilter implements ExceptionFilter {
           email: 'Este e-mail já está em uso.',
           cpf: 'Este CPF já foi cadastrado.',
           cnpj: 'Este CNPJ já foi cadastrado.',
+          plate: 'Esta placa já está cadastrada.',
         };
 
         return response.status(HttpStatus.CONFLICT).json({
           statusCode: HttpStatus.CONFLICT,
           code: 'DUPLICATE_FIELD',
-          message:
-            customMessages[field] ||
-            `Já existe um registro com o mesmo valor para: ${field}`,
+          message: customMessages[field] || `Valor duplicado para: ${field}`,
           field,
           timestamp: new Date().toISOString(),
           path: request.url,
@@ -39,8 +38,22 @@ export class PrismaExceptionFilter implements ExceptionFilter {
       }
     }
 
-    // Erro genérico
-    response.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
+    // ✅ Agora trata HttpException normal (ex: NotFoundException)
+    if (exception instanceof HttpException) {
+      const status = exception.getStatus();
+      const message = exception.getResponse();
+
+      return response.status(status).json({
+        statusCode: status,
+        code: 'HTTP_EXCEPTION',
+        message,
+        timestamp: new Date().toISOString(),
+        path: request.url,
+      });
+    }
+
+    // 🔥 Fallback final: erro desconhecido (500)
+    return response.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
       statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
       code: 'INTERNAL_SERVER_ERROR',
       message: 'Erro interno do servidor',
