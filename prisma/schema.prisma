@@ -76,6 +76,7 @@ model Client {
   email     String   @unique
   phone     String
   address   String
+  isExternal Boolean @default(true)
   createdAt DateTime @default(now())
   
   vehicles Vehicle[]
@@ -92,6 +93,7 @@ model Vehicle {
   createdAt DateTime @default(now())
 
   serviceOrders ServiceOrder[]
+  appointments    Appointment[]
 }
 
 model ServiceOrder {
@@ -130,6 +132,21 @@ model Photo {
   path       String
   uploadedAt DateTime      @default(now())
 }
+enum AppointmentStatus {
+  PENDENTE
+  CONCLUIDO
+}
+
+model Appointment {
+  id        String   @id @default(uuid())
+  vehicleId String
+  vehicle   Vehicle  @relation(fields: [vehicleId], references: [id])
+  date      DateTime
+  status    AppointmentStatus @default(PENDENTE)
+  notes     String?
+  createdAt DateTime @default(now())
+}
+
 
 
 
