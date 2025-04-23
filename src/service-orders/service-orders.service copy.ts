@@ -47,8 +47,8 @@ export class ServiceOrdersService {
     });
 
     // 🚨 Dispara notificação automática
-    const message = `🚗 O veículo ${vehicle.plate} teve uma nova ordem de serviço criada. \n
-Acompanhe o andamento nesse link: \n \n https://app.oficina.com/acompanhamento/${serviceOrder.id}`;
+    const message = `🚗 O veículo ${vehicle.plate} teve uma nova ordem de serviço criada. 
+Acompanhe o andamento: https://app.oficina.com/acompanhamento/${serviceOrder.id}`;
 
     await this.notificationsService.createAuto(serviceOrder.id, message);
 
@@ -66,23 +66,13 @@ Acompanhe o andamento nesse link: \n \n https://app.oficina.com/acompanhamento/$
     if (!order) throw new NotFoundException('Ordem de serviço não encontrada');
     return order;
   }
-  async update(id: string, data: UpdateServiceOrderDto) {
-    const existingOrder = await this.findOne(id); // pega o status antigo
 
-    const updatedOrder = await this.prisma.serviceOrder.update({
+  async update(id: string, data: UpdateServiceOrderDto) {
+    await this.findOne(id);
+    return this.prisma.serviceOrder.update({
       where: { id },
       data,
     });
-
-    // 🚨 Se mudou o status, dispara notificação
-    if (data.status && data.status !== existingOrder.status) {
-      const formattedStatus = data.status.replace('_', ' ').toUpperCase(); // EM_ANDAMENTO
-      const msg = `🔧 O status da ordem foi alterado para: ${formattedStatus}`;
-
-      await this.notificationsService.createAuto(id, msg);
-    }
-
-    return updatedOrder;
   }
 
   async remove(id: string) {

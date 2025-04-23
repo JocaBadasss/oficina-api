@@ -12,6 +12,9 @@ import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';
 import { AppointmentsModule } from './appointments/appointments.module';
 import { PublicAppointmentsModule } from './public-appointments/public-appointments.module';
+import { NotificationsModule } from './notifications/notifications.module';
+import { ConfigModule } from '@nestjs/config';
+import { TrackingModule } from './tracking/tracking.module';
 
 @Module({
   imports: [
@@ -28,6 +31,11 @@ import { PublicAppointmentsModule } from './public-appointments/public-appointme
     PhotosModule,
     AppointmentsModule,
     PublicAppointmentsModule,
+    NotificationsModule,
+    ConfigModule.forRoot({
+      isGlobal: true,
+    }),
+    TrackingModule,
   ],
   controllers: [AppController],
   providers: [AppService],

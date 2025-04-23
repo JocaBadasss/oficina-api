@@ -80,6 +80,7 @@ model Client {
   createdAt DateTime @default(now())
   
   vehicles Vehicle[]
+  notifications Notification[]
 }
 
 model Vehicle {
@@ -114,6 +115,8 @@ model ServiceOrder {
 
   report         ServiceReport?
   photos        Photo[]
+  notifications Notification[]
+
 }
 
 model ServiceReport {
@@ -147,6 +150,16 @@ model Appointment {
   createdAt DateTime @default(now())
 }
 
+model Notification {
+  id        String   @id @default(uuid())
+  clientId  String
+  client    Client   @relation(fields: [clientId], references: [id])
+  orderId   String   
+  serviceOrder ServiceOrder @relation(fields: [orderId], references: [id])
+  message   String
+  sent      Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
 
 
 

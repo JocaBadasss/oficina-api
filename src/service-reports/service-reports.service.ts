@@ -6,10 +6,14 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateServiceReportDto } from './dto/create-service-report.dto';
 import { UpdateServiceReportDto } from './dto/update-service-report.dto';
+import { NotificationsService } from 'src/notifications/notifications.service';
 
 @Injectable()
 export class ServiceReportsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private notificationsService: NotificationsService,
+  ) {}
 
   async create(data: CreateServiceReportDto) {
     const existing = await this.prisma.serviceReport.findUnique({
@@ -26,10 +30,18 @@ export class ServiceReportsService {
     const report = await this.prisma.serviceReport.create({ data });
 
     // Atualiza a OS vinculada para FINALIZADO
-    await this.prisma.serviceOrder.update({
+    const updatedOrder = await this.prisma.serviceOrder.update({
       where: { id: data.orderId },
       data: { status: 'FINALIZADO' },
+      include: {
+        vehicle: true, // 👈 precisamos disso pra pegar a placa
+      },
     });
+
+    // 🔔 Notificação complementar com a placa
+    const msg = `📋 O serviço do veículo ${updatedOrder.vehicle.plate} foi finalizado.\n \nConfira o laudo completo: \n https://app.oficina.com/acompanhamento/${data.orderId}`;
+
+    await this.notificationsService.createAuto(data.orderId, msg);
 
     return report;
   }

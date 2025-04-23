@@ -36,6 +36,12 @@ export enum PaintingStatus {
   REPARADA = 'REPARADA',
 }
 
+export enum ServiceStatus {
+  AGUARDANDO = 'AGUARDANDO',
+  EM_ANDAMENTO = 'EM_ANDAMENTO',
+  FINALIZADO = 'FINALIZADO',
+}
+
 export class CreateServiceOrderDto {
   @IsUUID(undefined, { message: 'vehicleId deve ser um UUID válido' })
   vehicleId!: string;
