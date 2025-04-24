@@ -57,6 +57,34 @@ export class NotificationsService {
     }
   }
 
+  async createWithoutOrder(clientId: string, message: string) {
+    const notification = await this.prisma.notification.create({
+      data: {
+        clientId,
+        message,
+        sent: false,
+      },
+    });
+
+    console.log(notification);
+
+    // Envia via WhatsApp
+    try {
+      await this.whatsappService.sendMessage(
+        (await this.prisma.client.findUnique({ where: { id: clientId } }))!
+          .phone,
+        message,
+      );
+
+      await this.prisma.notification.update({
+        where: { id: notification.id },
+        data: { sent: true },
+      });
+    } catch (err) {
+      console.error('❌ Erro ao enviar WhatsApp:', (err as Error).message);
+    }
+  }
+
   async findByClientId(clientId: string) {
     return this.prisma.notification.findMany({
       where: { clientId },

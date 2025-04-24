@@ -19,17 +19,15 @@ import {
 } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { toZonedTime } from 'date-fns-tz';
-import { NotificationsService } from 'src/notifications/notifications.service';
 
 @Injectable()
 export class AppointmentsService {
-  constructor(
-    private prisma: PrismaService,
-    private notificationsService: NotificationsService,
-  ) {}
+  constructor(private prisma: PrismaService) {}
 
   async create(data: CreateAppointmentDto) {
     const timeZone = 'America/Sao_Paulo';
+
+    // Converte o horário recebido para o horário de Brasília
     const localDate = toZonedTime(new Date(data.date), timeZone);
 
     const hour = localDate.getHours();
@@ -41,8 +39,10 @@ export class AppointmentsService {
       throw new BadRequestException('Agendamentos apenas de segunda a sexta');
     }
 
+    // Verifica se já existe outro agendamento nesse horário
     const start = new Date(localDate);
     start.setMinutes(0, 0, 0);
+
     const end = new Date(localDate);
     end.setMinutes(59, 59, 999);
 
@@ -63,7 +63,7 @@ export class AppointmentsService {
       where: {
         vehicleId: data.vehicleId,
         date: {
-          gte: new Date(),
+          gte: new Date(), // data atual pra frente
         },
       },
     });
@@ -74,33 +74,13 @@ export class AppointmentsService {
       );
     }
 
-    const appointment = await this.prisma.appointment.create({
+    return this.prisma.appointment.create({
       data: {
         vehicleId: data.vehicleId,
         date: localDate,
         notes: data.notes,
       },
-      include: {
-        vehicle: {
-          include: {
-            client: true, // 🆕 precisamos do telefone do cliente
-          },
-        },
-      },
     });
-
-    // ✅ NOVO BLOCO: notifica cliente automaticamente
-    const dateStr = format(localDate, "dd/MM/yyyy 'às' HH:mm", {
-      locale: ptBR,
-    });
-    const message = `Olá, ${appointment.vehicle.client.name}!  📆 Seu gendamento foi confirmado para ${dateStr}.`;
-
-    await this.notificationsService.createWithoutOrder(
-      appointment.vehicle.client.id,
-      message,
-    );
-
-    return appointment;
   }
 
   findAll() {

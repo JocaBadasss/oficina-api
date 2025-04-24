@@ -17,10 +17,14 @@ import {
   format,
 } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { NotificationsService } from 'src/notifications/notifications.service';
 
 @Injectable()
 export class PublicAppointmentsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private notificationsService: NotificationsService,
+  ) {}
 
   async getAvailableSlots(dateStr: string): Promise<string[]> {
     if (!dateStr) {
@@ -120,12 +124,19 @@ export class PublicAppointmentsService {
       });
     }
 
-    return this.prisma.appointment.create({
+    const appointment = await this.prisma.appointment.create({
       data: {
         vehicleId: vehicle.id,
         date,
         notes: dto.notes,
       },
     });
+
+    await this.notificationsService.createWithoutOrder(
+      client.id,
+      `📅 Olá ${client.name}, seu agendamento para o dia ${format(date, 'dd/MM/yyyy HH:mm')} foi confirmado!`,
+    );
+
+    return appointment;
   }
 }
