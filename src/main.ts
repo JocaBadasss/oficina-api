@@ -5,9 +5,17 @@ import { createAdmin } from './bootstrap';
 import { PrismaExceptionFilter } from './common/filters/prisma-exception.filter';
 import { BadRequestException, ValidationPipe } from '@nestjs/common';
 import { ValidationError } from 'class-validator';
+import cookieParser from 'cookie-parser';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+
+  app.use(cookieParser());
+
+  app.enableCors({
+    origin: 'http://localhost:3001', // ou seu domínio do front-end
+    credentials: true, // 🔥 importante para cookies
+  });
 
   app.useGlobalPipes(
     new ValidationPipe({

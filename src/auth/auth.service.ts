@@ -36,11 +36,28 @@ export class AuthService {
       isAdmin: user.isAdmin,
     };
 
-    const token = await this.jwtService.signAsync(payload);
+    const accessToken = await this.jwtService.signAsync(payload, {
+      expiresIn: '7d',
+    });
+
+    const refreshToken = await this.jwtService.signAsync(payload, {
+      expiresIn: '7d',
+    });
 
     return {
       user,
-      token,
+      accessToken,
+      refreshToken,
     };
+  }
+
+  async refresh(userId: string, isAdmin: boolean) {
+    const payload = { sub: userId, isAdmin };
+
+    const newAcessToken = await this.jwtService.signAsync(payload, {
+      expiresIn: '1h',
+    });
+
+    return { accessToken: newAcessToken };
   }
 }
