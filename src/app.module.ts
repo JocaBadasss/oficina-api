@@ -15,6 +15,7 @@ import { PublicAppointmentsModule } from './public-appointments/public-appointme
 import { NotificationsModule } from './notifications/notifications.module';
 import { ConfigModule } from '@nestjs/config';
 import { TrackingModule } from './tracking/tracking.module';
+import { UsersModule } from './users/users.module';
 
 @Module({
   imports: [
@@ -36,6 +37,7 @@ import { TrackingModule } from './tracking/tracking.module';
       isGlobal: true,
     }),
     TrackingModule,
+    UsersModule,
   ],
   controllers: [AppController],
   providers: [AppService],

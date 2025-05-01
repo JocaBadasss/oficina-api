@@ -58,6 +58,21 @@ Acompanhe o andamento nesse link: \n \n https://app.oficina.com/acompanhamento/$
   findAll() {
     return this.prisma.serviceOrder.findMany({
       orderBy: { createdAt: 'desc' },
+      include: {
+        vehicle: {
+          select: {
+            plate: true,
+            brand: true,
+            model: true,
+            year: true,
+            client: {
+              select: {
+                name: true,
+              },
+            },
+          },
+        },
+      },
     });
   }
 

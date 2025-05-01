@@ -30,4 +30,20 @@ export class ClientsService {
     await this.findOne(id); // valida se existe
     return this.prisma.client.delete({ where: { id } });
   }
+
+  async findOrdersByClient(clientId: string) {
+    return this.prisma.serviceOrder.findMany({
+      where: {
+        vehicle: {
+          clientId: clientId,
+        },
+      },
+      include: {
+        vehicle: true,
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+  }
 }

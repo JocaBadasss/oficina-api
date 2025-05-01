@@ -112,6 +112,11 @@ export class AppointmentsService {
             plate: true,
             brand: true,
             model: true,
+            client: {
+              select: {
+                name: true,
+              },
+            },
           },
         },
       },

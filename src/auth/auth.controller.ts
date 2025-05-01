@@ -78,4 +78,11 @@ export class AuthController {
 
     return { message: 'Novo access token gerado!' };
   }
+
+  @Post('logout')
+  logout(@Res({ passthrough: true }) res: Response) {
+    res.clearCookie('accessToken');
+    res.clearCookie('refreshToken');
+    return { message: 'Logout realizado com sucesso' };
+  }
 }

@@ -13,7 +13,7 @@ async function bootstrap() {
   app.use(cookieParser());
 
   app.enableCors({
-    origin: 'http://localhost:3001', // ou seu domínio do front-end
+    origin: 'http://localhost:3000', // ou seu domínio do front-end
     credentials: true, // 🔥 importante para cookies
   });
 
@@ -42,7 +42,7 @@ async function bootstrap() {
 
   app.useGlobalFilters(new PrismaExceptionFilter());
 
-  await app.listen(process.env.PORT ?? 3000);
+  await app.listen(process.env.PORT ?? 3333);
 
   const prisma = app.get(PrismaService);
 
