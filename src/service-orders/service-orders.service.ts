@@ -77,7 +77,24 @@ Acompanhe o andamento nesse link: \n \n https://app.oficina.com/acompanhamento/$
   }
 
   async findOne(id: string) {
-    const order = await this.prisma.serviceOrder.findUnique({ where: { id } });
+    const order = await this.prisma.serviceOrder.findUnique({
+      where: { id },
+      include: {
+        vehicle: {
+          select: {
+            plate: true,
+            brand: true,
+            model: true,
+            year: true,
+            client: {
+              select: {
+                name: true,
+              },
+            },
+          },
+        },
+      },
+    });
     if (!order) throw new NotFoundException('Ordem de serviço não encontrada');
     return order;
   }

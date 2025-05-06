@@ -51,4 +51,9 @@ export class ClientsController {
   findOrders(@Param('id') id: string) {
     return this.clientsService.findOrdersByClient(id);
   }
+
+  @Get(':id/vehicles')
+  findVehicles(@Param('id') id: string) {
+    return this.clientsService.findVehiclesByClient(id);
+  }
 }

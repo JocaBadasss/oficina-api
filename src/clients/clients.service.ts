@@ -46,4 +46,15 @@ export class ClientsService {
       },
     });
   }
+
+  async findVehiclesByClient(clientId: string) {
+    return this.prisma.vehicle.findMany({
+      where: {
+        clientId: clientId,
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+  }
 }

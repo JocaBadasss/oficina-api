@@ -14,12 +14,14 @@ export class VehiclesService {
   async findAll() {
     return await this.prisma.vehicle.findMany({
       orderBy: { createdAt: 'desc' },
+      include: { client: true },
     });
   }
 
   async findOne(id: string) {
     const vehicle = await this.prisma.vehicle.findUnique({
       where: { id },
+      include: { client: true },
     });
 
     if (!vehicle) {

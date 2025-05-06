@@ -75,7 +75,7 @@ model Client {
   cnpj      String?  @unique
   email     String   @unique
   phone     String
-  address   String
+  address   String?
   isExternal Boolean @default(true)
   createdAt DateTime @default(now())
   
@@ -88,9 +88,9 @@ model Vehicle {
   clientId  String
   client    Client   @relation(fields: [clientId], references: [id])
   plate     String   @unique
-  brand     String
-  model     String
-  year      Int
+  brand     String?
+  model     String?
+  year      Int?
   createdAt DateTime @default(now())
 
   serviceOrders ServiceOrder[]
@@ -101,13 +101,13 @@ model ServiceOrder {
   id             String           @id @default(uuid())
   vehicleId      String
   vehicle        Vehicle          @relation(fields: [vehicleId], references: [id])
-  fuelLevel      FuelLevel
-  adblueLevel    AdblueLevel
-  km             Int
-  tireStatus     TireStatus
-  mirrorStatus   MirrorStatus
-  paintingStatus PaintingStatus
-  complaints     String?
+  fuelLevel      FuelLevel?
+  adblueLevel    AdblueLevel?
+  km             Int?
+  tireStatus     TireStatus?
+  mirrorStatus   MirrorStatus?
+  paintingStatus PaintingStatus?
+  complaints     String
   notes          String?
   status         ServiceStatus    @default(AGUARDANDO)
   createdAt      DateTime         @default(now())

@@ -1,4 +1,4 @@
-import { IsNotEmpty, IsString, IsNumber } from 'class-validator';
+import { IsNotEmpty, IsString, IsNumber, IsOptional } from 'class-validator';
 
 export class CreateVehicleDto {
   @IsNotEmpty()
@@ -9,15 +9,15 @@ export class CreateVehicleDto {
   @IsString()
   plate!: string;
 
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
   brand!: string;
 
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
   model!: string;
 
-  @IsNotEmpty()
+  @IsOptional()
   @IsNumber()
   year!: number;
 }
