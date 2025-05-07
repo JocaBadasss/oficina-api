@@ -14,6 +14,12 @@ export class TrackingService {
             plate: true,
             brand: true,
             model: true,
+            client: {
+              select: {
+                name: true,
+                phone: true,
+              },
+            },
           },
         },
         report: {
@@ -35,6 +41,7 @@ export class TrackingService {
 
     return {
       id: order.id,
+      client: order.vehicle.client,
       status: order.status,
       createdAt: order.createdAt,
       updatedAt: order.updatedAt,
@@ -49,7 +56,7 @@ export class TrackingService {
       report: order.report,
       photos: order.photos.map((photo) => ({
         filename: photo.filename,
-        url: `http://localhost:3000/uploads/${photo.filename}`, // ajusta conforme a URL real
+        url: `${process.env.APP_URL}/uploads/${photo.filename}`,
       })),
     };
   }
