@@ -8,6 +8,8 @@ export class VehiclesService {
   constructor(private prisma: PrismaService) {}
 
   async create(data: CreateVehicleDto) {
+    data.plate = data.plate.replace('-', '').toUpperCase();
+
     return await this.prisma.vehicle.create({ data });
   }
 

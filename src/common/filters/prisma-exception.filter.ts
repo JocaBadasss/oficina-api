@@ -5,7 +5,7 @@ import {
   HttpStatus,
   HttpException,
 } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library'; // ← AQUI
 import { Request, Response } from 'express';
 
 @Catch()
@@ -16,7 +16,7 @@ export class PrismaExceptionFilter implements ExceptionFilter {
     const request = ctx.getRequest<Request>();
 
     // 🔒 Erro padrão do Prisma
-    if (exception instanceof Prisma.PrismaClientKnownRequestError) {
+    if (exception instanceof PrismaClientKnownRequestError) {
       if (exception.code === 'P2002') {
         const field = (exception.meta?.target as string[])[0] || 'campo';
 
