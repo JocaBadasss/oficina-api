@@ -71,10 +71,9 @@ model User {
 model Client {
   id        String   @id @default(uuid())
   name      String
-  cpf       String?  @unique
-  cnpj      String?  @unique
-  email     String   @unique
-  phone     String
+  cpfOrCnpj String  @unique
+  email     String  @unique
+  phone     String  @unique
   address   String?
   isExternal Boolean @default(true)
   createdAt DateTime @default(now())

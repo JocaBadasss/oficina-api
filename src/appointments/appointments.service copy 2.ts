@@ -31,22 +31,14 @@ export class AppointmentsService {
   async create(data: CreateAppointmentDto) {
     const timeZone = 'America/Sao_Paulo';
     const localDate = toZonedTime(new Date(data.date), timeZone);
-    const hour = localDate.getHours();
 
+    const hour = localDate.getHours();
     if (hour < 8 || hour > 17) {
-      throw new BadRequestException({
-        code: 'OUT_OF_BUSINESS_HOURS',
-        field: 'date',
-        message: 'Horário fora do expediente (08h às 17h).',
-      });
+      throw new BadRequestException('Horário fora do expediente (08h às 17h)');
     }
 
     if (isWeekend(localDate)) {
-      throw new BadRequestException({
-        code: 'WEEKEND_NOT_ALLOWED',
-        field: 'date',
-        message: 'Agendamentos apenas de segunda a sexta.',
-      });
+      throw new BadRequestException('Agendamentos apenas de segunda a sexta');
     }
 
     const start = new Date(localDate);
@@ -64,26 +56,22 @@ export class AppointmentsService {
     });
 
     if (existing) {
-      throw new ConflictException({
-        code: 'TIME_SLOT_OCCUPIED',
-        field: 'date',
-        message: 'Horário já está ocupado.',
-      });
+      throw new ConflictException('Horário já está ocupado');
     }
 
     const existingForVehicle = await this.prisma.appointment.findFirst({
       where: {
         vehicleId: data.vehicleId,
-        date: { gte: new Date() },
+        date: {
+          gte: new Date(),
+        },
       },
     });
 
     if (existingForVehicle) {
-      throw new ConflictException({
-        code: 'VEHICLE_ALREADY_SCHEDULED',
-        field: 'vehicleId',
-        message: 'Este veículo já possui um agendamento futuro.',
-      });
+      throw new ConflictException(
+        'Este veículo já possui um agendamento futuro.',
+      );
     }
 
     const appointment = await this.prisma.appointment.create({
@@ -95,29 +83,22 @@ export class AppointmentsService {
       include: {
         vehicle: {
           include: {
-            client: true,
+            client: true, // 🆕 precisamos do telefone do cliente
           },
         },
       },
     });
 
-    const client = appointment.vehicle.client;
-
-    if (!client || !client.phone) {
-      throw new ConflictException({
-        code: 'MISSING_CLIENT_PHONE',
-        field: 'client.phone',
-        message: 'Cliente não possui telefone para envio da notificação.',
-      });
-    }
-
+    // ✅ NOVO BLOCO: notifica cliente automaticamente
     const dateStr = format(localDate, "dd/MM/yyyy 'às' HH:mm", {
       locale: ptBR,
     });
+    const message = `Olá, ${appointment.vehicle.client.name}!  📆 Seu gendamento foi confirmado para ${dateStr}.`;
 
-    const message = `Olá, ${client.name}! 📆 Seu agendamento foi confirmado para ${dateStr}.`;
-
-    await this.notificationsService.createWithoutOrder(client.id, message);
+    await this.notificationsService.createWithoutOrder(
+      appointment.vehicle.client.id,
+      message,
+    );
 
     return appointment;
   }
@@ -132,7 +113,9 @@ export class AppointmentsService {
             brand: true,
             model: true,
             client: {
-              select: { name: true },
+              select: {
+                name: true,
+              },
             },
           },
         },
@@ -150,7 +133,9 @@ export class AppointmentsService {
             brand: true,
             model: true,
             client: {
-              select: { name: true },
+              select: {
+                name: true,
+              },
             },
           },
         },
@@ -158,11 +143,7 @@ export class AppointmentsService {
     });
 
     if (!appointment) {
-      throw new NotFoundException({
-        code: 'APPOINTMENT_NOT_FOUND',
-        field: 'id',
-        message: 'Agendamento não encontrado.',
-      });
+      throw new NotFoundException('Agendamento não encontrado');
     }
 
     return appointment;
@@ -185,11 +166,7 @@ export class AppointmentsService {
 
   async getAvailableSlots(dateStr: string): Promise<string[]> {
     if (!dateStr) {
-      throw new BadRequestException({
-        code: 'MISSING_DATE',
-        field: 'date',
-        message: 'Data não informada.',
-      });
+      throw new BadRequestException('Data não informada');
     }
 
     const timeZone = 'America/Sao_Paulo';
@@ -197,11 +174,7 @@ export class AppointmentsService {
     const localDate = toZonedTime(parsedDate, timeZone);
 
     if (isWeekend(localDate)) {
-      throw new BadRequestException({
-        code: 'WEEKEND_NOT_ALLOWED',
-        field: 'date',
-        message: 'Não há expediente em finais de semana.',
-      });
+      throw new BadRequestException('Não há expediente em finais de semana');
     }
 
     const availableSlots: string[] = [];
@@ -241,25 +214,17 @@ export class AppointmentsService {
     });
 
     if (!appointment) {
-      throw new NotFoundException({
-        code: 'APPOINTMENT_NOT_FOUND',
-        field: 'appointmentId',
-        message: 'Agendamento não encontrado.',
-      });
+      throw new NotFoundException('Agendamento não encontrado');
     }
 
     if (appointment.status === 'CONCLUIDO') {
-      throw new ConflictException({
-        code: 'APPOINTMENT_ALREADY_FINISHED',
-        field: 'appointmentId',
-        message: 'Este agendamento já foi concluído.',
-      });
+      throw new ConflictException('Este agendamento já foi concluído.');
     }
 
     const order = await this.prisma.serviceOrder.create({
       data: {
         vehicleId: appointment.vehicleId,
-        fuelLevel: 'RESERVA',
+        fuelLevel: 'RESERVA', // valores padrões temporários
         adblueLevel: 'VAZIO',
         km: 0,
         tireStatus: 'RUIM',

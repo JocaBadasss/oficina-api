@@ -1,3 +1,4 @@
+// src/users/users.service.ts
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { UserResponseDto } from './dto/user-response.dto';
@@ -18,13 +19,7 @@ export class UsersService {
       },
     });
 
-    if (!user) {
-      throw new NotFoundException({
-        code: 'USER_NOT_FOUND',
-        field: 'id',
-        message: 'Usuário não encontrado.',
-      });
-    }
+    if (!user) throw new NotFoundException('Usuário não encontrado');
 
     return user;
   }

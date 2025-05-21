@@ -15,6 +15,7 @@ import { UpdateServiceOrderDto } from './dto/update-service-order.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { AdminGuard } from '../auth/admin.guard';
 import { PrismaExceptionFilter } from '../common/filters/prisma-exception.filter';
+import { CreateFullServiceOrderDto } from './dto/CreateFullServiceOrderDto';
 
 @UseGuards(JwtAuthGuard, AdminGuard)
 @UseFilters(PrismaExceptionFilter)
@@ -45,5 +46,10 @@ export class ServiceOrdersController {
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.service.remove(id);
+  }
+
+  @Post('/full')
+  createFull(@Body() dto: CreateFullServiceOrderDto) {
+    return this.service.createFull(dto);
   }
 }

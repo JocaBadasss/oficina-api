@@ -1,7 +1,6 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { WhatsAppService } from './whatsapp/whatsapp.service';
-import { Prisma } from '@prisma/client';
 
 @Injectable()
 export class NotificationsService {
@@ -10,12 +9,8 @@ export class NotificationsService {
     private whatsappService: WhatsAppService,
   ) {}
 
-  async createAuto(
-    orderId: string,
-    message: string,
-    tx: Prisma.TransactionClient = this.prisma,
-  ) {
-    const order = await tx.serviceOrder.findUnique({
+  async createAuto(orderId: string, message: string) {
+    const order = await this.prisma.serviceOrder.findUnique({
       where: { id: orderId },
       include: {
         vehicle: {
@@ -26,25 +21,12 @@ export class NotificationsService {
       },
     });
 
-    if (!order) {
-      throw new NotFoundException({
-        code: 'ORDER_NOT_FOUND',
-        field: 'orderId',
-        message: 'Ordem de serviço não encontrada para envio de notificação.',
-      });
-    }
-
-    if (!order.vehicle?.client) {
-      throw new NotFoundException({
-        code: 'CLIENT_NOT_FOUND',
-        field: 'vehicle.client',
-        message: 'Cliente não encontrado para o veículo vinculado à OS.',
-      });
-    }
+    if (!order || !order.vehicle.client) return;
 
     const client = order.vehicle.client;
 
-    const notification = await tx.notification.create({
+    // Cria notificação no banco
+    const notification = await this.prisma.notification.create({
       data: {
         clientId: client.id,
         orderId: order.id,
@@ -53,36 +35,29 @@ export class NotificationsService {
       },
     });
 
+    // Envia via WhatsApp (sem template, mensagem simples)
     try {
       const result = await this.whatsappService.sendMessage(
         client.phone,
         message,
       );
 
-      console.log('📲 Resposta do WhatsApp:', result);
+      console.log('📲 Resposta do Twilio:', result);
 
-      await tx.notification.update({
+      await this.prisma.notification.update({
         where: { id: notification.id },
         data: { sent: true },
       });
     } catch (err) {
-      console.error('❌ Falha ao enviar WhatsApp:', (err as Error).message);
+      if (err instanceof Error) {
+        console.error('❌ Falha ao enviar WhatsApp:', err.message);
+      } else {
+        console.error('❌ Falha ao enviar WhatsApp:', String(err));
+      }
     }
   }
 
   async createWithoutOrder(clientId: string, message: string) {
-    const client = await this.prisma.client.findUnique({
-      where: { id: clientId },
-    });
-
-    if (!client) {
-      throw new NotFoundException({
-        code: 'CLIENT_NOT_FOUND',
-        field: 'clientId',
-        message: 'Cliente não encontrado para envio de notificação.',
-      });
-    }
-
     const notification = await this.prisma.notification.create({
       data: {
         clientId,
@@ -91,8 +66,15 @@ export class NotificationsService {
       },
     });
 
+    console.log(notification);
+
+    // Envia via WhatsApp
     try {
-      await this.whatsappService.sendMessage(client.phone, message);
+      await this.whatsappService.sendMessage(
+        (await this.prisma.client.findUnique({ where: { id: clientId } }))!
+          .phone,
+        message,
+      );
 
       await this.prisma.notification.update({
         where: { id: notification.id },

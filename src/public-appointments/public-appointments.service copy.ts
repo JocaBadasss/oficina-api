@@ -18,14 +18,12 @@ import {
 } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { NotificationsService } from 'src/notifications/notifications.service';
-import { ClientsService } from 'src/clients/clients.service';
 
 @Injectable()
 export class PublicAppointmentsService {
   constructor(
     private prisma: PrismaService,
     private notificationsService: NotificationsService,
-    private clientsService: ClientsService,
   ) {}
 
   async getAvailableSlots(dateStr: string): Promise<string[]> {
@@ -93,26 +91,22 @@ export class PublicAppointmentsService {
     });
 
     if (!client) {
-      client = await this.clientsService.createFromAppointment({
-        name: dto.name,
-        phone: dto.phone,
-        cpfOrCnpj: dto.cpfOrCnpj,
+      client = await this.prisma.client.create({
+        data: {
+          name: dto.name,
+          phone: dto.phone,
+          cpfOrCnpj: dto.cpfOrCnpj,
+          email: `${dto.phone.replace(/\D/g, '')}@auto.fake`,
+          address: '-',
+          isExternal: true,
+        },
       });
     }
-
-    if (!client) {
-      throw new BadRequestException(
-        'Erro inesperado: cliente não foi criado nem encontrado.',
-      );
-    }
-
-    // 🔍 Normaliza a placa antes de buscar/criar
-    const normalizedPlate = dto.plate.replace('-', '').toUpperCase();
 
     // 🔍 Busca veículo
     let vehicle = await this.prisma.vehicle.findFirst({
       where: {
-        plate: normalizedPlate,
+        plate: dto.plate,
         clientId: client.id,
       },
     });
@@ -121,26 +115,12 @@ export class PublicAppointmentsService {
       vehicle = await this.prisma.vehicle.create({
         data: {
           clientId: client.id,
-          plate: normalizedPlate,
+          plate: dto.plate,
           brand: dto.brand,
           model: dto.model,
           year: dto.year,
         },
       });
-    }
-
-    // 🔍 Verifica se esse veículo já tem agendamento neste horário
-    const sameVehicleSameDate = await this.prisma.appointment.findFirst({
-      where: {
-        vehicleId: vehicle.id,
-        date,
-      },
-    });
-
-    if (sameVehicleSameDate) {
-      throw new ConflictException(
-        'Este veículo já está agendado para este horário',
-      );
     }
 
     const appointment = await this.prisma.appointment.create({
@@ -153,10 +133,7 @@ export class PublicAppointmentsService {
 
     await this.notificationsService.createWithoutOrder(
       client.id,
-      `📅 Olá ${client.name}, seu agendamento para o dia ${format(
-        date,
-        'dd/MM/yyyy HH:mm',
-      )} foi confirmado!`,
+      `📅 Olá ${client.name}, seu agendamento para o dia ${format(date, 'dd/MM/yyyy HH:mm')} foi confirmado!`,
     );
 
     return appointment;

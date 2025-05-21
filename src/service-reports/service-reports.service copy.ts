@@ -21,38 +21,25 @@ export class ServiceReportsService {
     });
 
     if (existing) {
-      throw new ConflictException({
-        code: 'REPORT_ALREADY_EXISTS',
-        field: 'orderId',
-        message: 'Essa ordem de serviço já possui um relatório.',
-      });
-    }
-
-    const order = await this.prisma.serviceOrder.findUnique({
-      where: { id: data.orderId },
-      include: { vehicle: true },
-    });
-
-    if (!order) {
-      throw new NotFoundException({
-        code: 'ORDER_NOT_FOUND',
-        field: 'orderId',
-        message: 'Ordem de serviço não encontrada.',
-      });
+      throw new ConflictException(
+        'Essa ordem de serviço já possui um relatório.',
+      );
     }
 
     // Cria o relatório
     const report = await this.prisma.serviceReport.create({ data });
 
     // Atualiza a OS vinculada para FINALIZADO
-    await this.prisma.serviceOrder.update({
+    const updatedOrder = await this.prisma.serviceOrder.update({
       where: { id: data.orderId },
       data: { status: 'FINALIZADO' },
+      include: {
+        vehicle: true, // 👈 precisamos disso pra pegar a placa
+      },
     });
 
-    // 🔔 Notificação com fallback pra placa desconhecida
-    const plate = order.vehicle?.plate ?? 'placa não informada';
-    const msg = `📋 O serviço do veículo ${plate} foi finalizado.\n\nConfira o laudo completo:\nhttps://app.oficina.com/acompanhamento/${data.orderId}`;
+    // 🔔 Notificação complementar com a placa
+    const msg = `📋 O serviço do veículo ${updatedOrder.vehicle.plate} foi finalizado.\n \nConfira o laudo completo: \n https://app.oficina.com/acompanhamento/${data.orderId}`;
 
     await this.notificationsService.createAuto(data.orderId, msg);
 
@@ -65,11 +52,7 @@ export class ServiceReportsService {
     });
 
     if (!report) {
-      throw new NotFoundException({
-        code: 'REPORT_NOT_FOUND',
-        field: 'orderId',
-        message: 'Relatório não encontrado para esta ordem de serviço.',
-      });
+      throw new NotFoundException('Relatório não encontrado para esta OS.');
     }
 
     return report;
@@ -81,11 +64,7 @@ export class ServiceReportsService {
     });
 
     if (!report) {
-      throw new NotFoundException({
-        code: 'REPORT_NOT_FOUND',
-        field: 'orderId',
-        message: 'Relatório não encontrado para esta ordem de serviço.',
-      });
+      throw new NotFoundException('Relatório não encontrado para esta OS.');
     }
 
     return this.prisma.serviceReport.update({

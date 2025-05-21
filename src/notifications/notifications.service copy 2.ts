@@ -1,7 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { WhatsAppService } from './whatsapp/whatsapp.service';
-import { Prisma } from '@prisma/client';
 
 @Injectable()
 export class NotificationsService {
@@ -10,12 +9,8 @@ export class NotificationsService {
     private whatsappService: WhatsAppService,
   ) {}
 
-  async createAuto(
-    orderId: string,
-    message: string,
-    tx: Prisma.TransactionClient = this.prisma,
-  ) {
-    const order = await tx.serviceOrder.findUnique({
+  async createAuto(orderId: string, message: string) {
+    const order = await this.prisma.serviceOrder.findUnique({
       where: { id: orderId },
       include: {
         vehicle: {
@@ -44,7 +39,7 @@ export class NotificationsService {
 
     const client = order.vehicle.client;
 
-    const notification = await tx.notification.create({
+    const notification = await this.prisma.notification.create({
       data: {
         clientId: client.id,
         orderId: order.id,
@@ -61,7 +56,7 @@ export class NotificationsService {
 
       console.log('📲 Resposta do WhatsApp:', result);
 
-      await tx.notification.update({
+      await this.prisma.notification.update({
         where: { id: notification.id },
         data: { sent: true },
       });

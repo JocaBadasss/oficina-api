@@ -5,26 +5,17 @@ import {
   HttpStatus,
   HttpException,
 } from '@nestjs/common';
-import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
+import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library'; // ← AQUI
 import { Request, Response } from 'express';
-
-function isExceptionWithMessage(
-  val: unknown,
-): val is { message: string; code?: string; stack?: string } {
-  if (typeof val !== 'object' || val === null) return false;
-
-  const maybeError = val as Record<string, unknown>;
-  return typeof maybeError.message === 'string';
-}
 
 @Catch()
 export class PrismaExceptionFilter implements ExceptionFilter {
-  catch(exception: unknown, host: ArgumentsHost) {
+  catch(exception: any, host: ArgumentsHost) {
     const ctx = host.switchToHttp();
     const response = ctx.getResponse<Response>();
     const request = ctx.getRequest<Request>();
 
-    // 🔒 Trata erro de constraint do Prisma (ex: duplicado)
+    // 🔒 Erro padrão do Prisma
     if (exception instanceof PrismaClientKnownRequestError) {
       if (exception.code === 'P2002') {
         const field = (exception.meta?.target as string[])[0] || 'campo';
@@ -47,7 +38,7 @@ export class PrismaExceptionFilter implements ExceptionFilter {
       }
     }
 
-    // ✅ Trata exceções padrão do Nest
+    // ✅ Agora trata HttpException normal (ex: NotFoundException)
     if (exception instanceof HttpException) {
       const status = exception.getStatus();
       const message = exception.getResponse();
@@ -61,19 +52,7 @@ export class PrismaExceptionFilter implements ExceptionFilter {
       });
     }
 
-    // 🔥 Fallback: erro inesperado (ex: erro do Prisma não tratado)
-    if (isExceptionWithMessage(exception)) {
-      console.error('Erro interno não tratado:', {
-        method: request.method,
-        url: request.url,
-        message: exception.message,
-        code: exception.code,
-        stack: exception.stack,
-      });
-    } else {
-      console.error('Erro interno desconhecido:', exception);
-    }
-
+    // 🔥 Fallback final: erro desconhecido (500)
     return response.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
       statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
       code: 'INTERNAL_SERVER_ERROR',

@@ -1,9 +1,11 @@
+import { Transform } from 'class-transformer';
 import {
   IsString,
   IsDateString,
   IsNotEmpty,
   IsOptional,
   IsInt,
+  Matches,
 } from 'class-validator';
 
 export class CreatePublicAppointmentDto {
@@ -15,13 +17,11 @@ export class CreatePublicAppointmentDto {
   @IsNotEmpty()
   phone!: string;
 
-  @IsOptional()
-  @IsString()
-  cpf?: string;
-
-  @IsOptional()
-  @IsString()
-  cnpj?: string;
+  @Transform(({ value }) => (value as string).replace(/\D/g, ''))
+  @Matches(/^(\d{11}|\d{14})$/, {
+    message: 'CPF ou CNPJ deve conter 11 ou 14 dígitos numéricos',
+  })
+  cpfOrCnpj!: string;
 
   @IsString()
   @IsNotEmpty()

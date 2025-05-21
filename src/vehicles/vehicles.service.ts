@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateVehicleDto } from './dto/create-vehicle.dto';
 import { UpdateVehicleDto } from './dto/update-vehicle.dto';
@@ -9,6 +13,32 @@ export class VehiclesService {
 
   async create(data: CreateVehicleDto) {
     data.plate = data.plate.replace('-', '').toUpperCase();
+
+    if (data.clientId) {
+      const clientExists = await this.prisma.client.findUnique({
+        where: { id: data.clientId },
+      });
+
+      if (!clientExists) {
+        throw new BadRequestException({
+          code: 'INVALID_RELATION',
+          field: 'clientId',
+          message: 'Cliente não encontrado.',
+        });
+      }
+    }
+
+    const existingVehicle = await this.prisma.vehicle.findUnique({
+      where: { plate: data.plate },
+    });
+
+    if (existingVehicle) {
+      throw new BadRequestException({
+        code: 'DUPLICATE_FIELD',
+        field: 'plate',
+        message: 'Já existe um veículo com essa placa.',
+      });
+    }
 
     return await this.prisma.vehicle.create({ data });
   }
@@ -34,8 +64,38 @@ export class VehiclesService {
   }
 
   async update(id: string, data: UpdateVehicleDto) {
-    // ✅ Validação pra garantir que o ID existe
     await this.findOne(id);
+
+    if (data.clientId) {
+      const clientExists = await this.prisma.client.findUnique({
+        where: { id: data.clientId },
+      });
+
+      if (!clientExists) {
+        throw new BadRequestException({
+          code: 'INVALID_RELATION',
+          field: 'clientId',
+          message: 'Cliente não encontrado.',
+        });
+      }
+    }
+
+    if (data.plate) {
+      data.plate = data.plate.replace('-', '').toUpperCase();
+
+      const existingVehicle = await this.prisma.vehicle.findUnique({
+        where: { plate: data.plate },
+      });
+
+      if (existingVehicle && existingVehicle.id !== id) {
+        throw new BadRequestException({
+          code: 'DUPLICATE_FIELD',
+          field: 'plate',
+          message: 'Já existe um veículo com essa placa.',
+        });
+      }
+    }
+
     return await this.prisma.vehicle.update({
       where: { id },
       data,
@@ -43,8 +103,21 @@ export class VehiclesService {
   }
 
   async remove(id: string) {
-    // ✅ Validação pra garantir que o ID existe
     await this.findOne(id);
+
+    const vehicleInUse = await this.prisma.serviceOrder.findFirst({
+      where: { vehicleId: id },
+    });
+
+    if (vehicleInUse) {
+      throw new BadRequestException({
+        code: 'VEHICLE_IN_USE',
+        field: 'id',
+        message:
+          'Não é possível remover este veículo, pois está vinculado a uma ordem de serviço.',
+      });
+    }
+
     return await this.prisma.vehicle.delete({
       where: { id },
     });
