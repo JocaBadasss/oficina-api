@@ -19,12 +19,14 @@ import {
   PaintingStatus,
 } from './dto/create-service-order.dto';
 import { Prisma } from '@prisma/client';
+import { PhotosService } from 'src/photos/photos.service';
 
 @Injectable()
 export class ServiceOrdersService {
   constructor(
     private prisma: PrismaService,
     private notificationsService: NotificationsService,
+    private photosService: PhotosService,
   ) {}
 
   async create(data: CreateServiceOrderDto) {
@@ -393,5 +395,116 @@ export class ServiceOrdersService {
       message: 'Atendimento criado com sucesso.',
       orderId: order.id,
     };
+  }
+
+  async createWithFiles(
+    data: CreateServiceOrderDto,
+    files: Express.Multer.File[],
+  ) {
+    const existingOrder = await this.prisma.serviceOrder.findFirst({
+      where: {
+        vehicleId: data.vehicleId,
+        status: { in: ['AGUARDANDO', 'EM_ANDAMENTO'] },
+      },
+    });
+
+    if (existingOrder) {
+      throw new ConflictException({
+        code: 'ORDER_ALREADY_EXISTS',
+        field: 'vehicleId',
+        message: 'Já existe uma ordem em andamento para este veículo.',
+      });
+    }
+
+    const vehicle = await this.prisma.vehicle.findUnique({
+      where: { id: data.vehicleId },
+      include: { client: true },
+    });
+
+    if (!vehicle) {
+      throw new NotFoundException({
+        code: 'VEHICLE_NOT_FOUND',
+        field: 'vehicleId',
+        message: 'Veículo não encontrado para esta ordem de serviço.',
+      });
+    }
+
+    const serviceOrder = await this.prisma.$transaction(async (tx) => {
+      const order = await tx.serviceOrder.create({ data });
+
+      console.log(order);
+
+      if (files?.length) {
+        for (const file of files) {
+          await this.photosService.create(
+            file.filename,
+            file.path,
+            order.id,
+            tx,
+          );
+        }
+      }
+
+      return order;
+    });
+
+    const phone = vehicle.client?.phone;
+    if (!phone) {
+      throw new ConflictException({
+        code: 'MISSING_PHONE',
+        field: 'client.phone',
+        message:
+          'Cliente não possui número de telefone cadastrado para envio de notificação.',
+      });
+    }
+
+    const message = `🚗 O veículo ${vehicle.plate} teve uma nova ordem de serviço criada.\n\nAcompanhe o andamento nesse link:\n\nhttps://app.oficina.com/acompanhamento/${serviceOrder.id}`;
+
+    await this.notificationsService.createAuto(serviceOrder.id, message);
+
+    return serviceOrder;
+  }
+
+  async createOrderFullOptionalEntitiesWithPhotos(
+    dto: CreateFullServiceOrderDto,
+    files: Express.Multer.File[] = [],
+  ) {
+    try {
+      return await this.prisma.$transaction(async (tx) => {
+        // 1. Resolver ou criar cliente
+        const clientId = await this.resolveOrCreateClient(dto, tx);
+
+        // 2. Resolver ou criar veículo
+        const vehicleId = await this.resolveOrCreateVehicle(dto, clientId, tx);
+
+        // 3. Criar ordem de serviço e notificar cliente
+        const order = await this.createServiceOrderAndNotify(
+          dto,
+          vehicleId,
+          tx,
+        );
+
+        // 4. Salvar fotos, se existirem
+        if (files?.length) {
+          for (const file of files) {
+            await this.photosService.create(
+              file.filename,
+              file.path,
+              order.orderId,
+              tx,
+            );
+          }
+        }
+
+        // Retorna ordem criada com sucesso
+        return order;
+      });
+    } catch (error) {
+      console.error('Erro inesperado ao criar ordem completa:', error);
+      if (error instanceof HttpException) throw error;
+      throw new InternalServerErrorException(
+        'Erro inesperado ao criar ordem completa. Tente novamente.',
+      );
+    }
   }
 }

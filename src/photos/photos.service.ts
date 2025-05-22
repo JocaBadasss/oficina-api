@@ -1,13 +1,19 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { Prisma, PrismaClient } from '@prisma/client';
 
 @Injectable()
 export class PhotosService {
   constructor(private prisma: PrismaService) {}
 
-  async create(filename: string, path: string, orderId: string) {
+  async create(
+    filename: string,
+    path: string,
+    orderId: string,
+    prisma: Prisma.TransactionClient | PrismaClient = this.prisma,
+  ) {
     // 🔒 Garante que a ordem existe antes de salvar a foto
-    const orderExists = await this.prisma.serviceOrder.findUnique({
+    const orderExists = await prisma.serviceOrder.findUnique({
       where: { id: orderId },
     });
 
@@ -19,7 +25,7 @@ export class PhotosService {
       });
     }
 
-    return this.prisma.photo.create({
+    return prisma.photo.create({
       data: {
         filename,
         path,

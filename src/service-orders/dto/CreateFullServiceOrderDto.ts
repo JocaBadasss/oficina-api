@@ -1,11 +1,14 @@
+import { Transform } from 'class-transformer';
 import {
   IsNotEmpty,
   IsOptional,
   IsString,
   IsNumber,
   Matches,
+  IsInt,
 } from 'class-validator';
 import { IsValidPlate } from 'src/validators/isValidPlate';
+import { transformToInt } from './create-service-order.dto';
 
 export class CreateFullServiceOrderDto {
   // CLIENTE
@@ -66,7 +69,8 @@ export class CreateFullServiceOrderDto {
   notes?: string;
 
   @IsOptional()
-  @IsNumber()
+  @Transform(transformToInt())
+  @IsInt({ message: 'km deve ser um número inteiro' })
   km?: number;
 
   @IsOptional()

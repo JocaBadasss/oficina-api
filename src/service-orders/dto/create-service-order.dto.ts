@@ -50,7 +50,7 @@ function transformEmptyToUndefined<T>() {
     value === '' ? undefined : (value as T);
 }
 
-function transformToInt() {
+export function transformToInt() {
   return ({ value }: { value: string }) =>
     value === '' ? undefined : parseInt(value, 10);
 }

@@ -7,5 +7,6 @@ import { PrismaModule } from 'src/prisma/prisma.module';
   imports: [PrismaModule],
   controllers: [PhotosController],
   providers: [PhotosService],
+  exports: [PhotosService],
 })
 export class PhotosModule {}
