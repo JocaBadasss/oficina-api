@@ -112,13 +112,25 @@ export class ServiceOrdersService {
             plate: true,
             brand: true,
             model: true,
-            year: true,
             client: {
               select: {
-                id: true,
                 name: true,
+                phone: true,
               },
             },
+          },
+        },
+        report: {
+          select: {
+            description: true,
+            createdAt: true,
+          },
+        },
+        photos: {
+          select: {
+            id: true,
+            filename: true,
+            path: true,
           },
         },
       },
@@ -132,7 +144,27 @@ export class ServiceOrdersService {
       });
     }
 
-    return order;
+    return {
+      id: order.id,
+      client: order.vehicle.client,
+      status: order.status,
+      createdAt: order.createdAt,
+      updatedAt: order.updatedAt,
+      fuelLevel: order.fuelLevel,
+      adblueLevel: order.adblueLevel,
+      km: order.km,
+      tireStatus: order.tireStatus,
+      mirrorStatus: order.mirrorStatus,
+      paintingStatus: order.paintingStatus,
+      complaints: order.complaints,
+      vehicle: order.vehicle,
+      report: order.report,
+      photos: order.photos.map((photo) => ({
+        id: photo.id,
+        filename: photo.filename,
+        url: `${process.env.APP_URL}/uploads/${photo.filename}`,
+      })),
+    };
   }
 
   async update(id: string, data: UpdateServiceOrderDto) {
@@ -504,6 +536,81 @@ export class ServiceOrdersService {
       if (error instanceof HttpException) throw error;
       throw new InternalServerErrorException(
         'Erro inesperado ao criar ordem completa. Tente novamente.',
+      );
+    }
+  }
+
+  async updateWithPhotos(
+    id: string,
+    dto: UpdateServiceOrderDto,
+    files: Express.Multer.File[] = [],
+  ) {
+    try {
+      return await this.prisma.$transaction(async (tx) => {
+        // 1) Buscar ordem existente
+        const existingOrder = await tx.serviceOrder.findUnique({
+          where: { id },
+        });
+        if (!existingOrder) {
+          throw new NotFoundException({
+            code: 'ORDER_NOT_FOUND',
+            field: 'id',
+            message: 'Ordem de serviço não encontrada.',
+          });
+        }
+
+        // 2) Atualizar campos da ordem
+        const { removePhotoIds, ...updateData } = dto;
+        const updatedOrder = await tx.serviceOrder.update({
+          where: { id },
+          data: updateData,
+        });
+
+        // 3) Notificar mudança de status, se houver
+        if (dto.status && dto.status !== existingOrder.status) {
+          const formattedStatus = dto.status
+            .replace(/_/g, ' ')
+            .toLowerCase()
+            .replace(/^\w/, (l) => l.toUpperCase());
+          const msg = `🔧 O status da ordem foi alterado para: ${formattedStatus}`;
+          await this.notificationsService.createAuto(id, msg, tx);
+        }
+
+        // 4) Remover fotos antigas (se solicitado)
+        if (removePhotoIds?.length) {
+          for (const removeId of removePhotoIds) {
+            // 1) confere se a foto existe e pertence a esta ordem
+            const photoRecord = await tx.photo.findFirst({
+              where: { id: removeId, orderId: id },
+            });
+            if (!photoRecord) {
+              throw new BadRequestException({
+                code: 'INVALID_PHOTO',
+                field: 'removePhotoIds',
+                message: `Foto ${removeId} não pertence a essa ordem.`,
+              });
+            }
+            // 2) chama o service pra remover (DB + arquivo)
+            await this.photosService.remove(removeId, tx);
+          }
+        }
+
+        // 5) Incluir novas fotos
+        if (files.length) {
+          for (const file of files) {
+            await this.photosService.create(file.filename, file.path, id, tx);
+          }
+        }
+
+        return updatedOrder;
+      });
+    } catch (error) {
+      // repassa exceções HTTP conhecidas
+      if (error instanceof HttpException) throw error;
+      // qualquer outro erro vira 500
+      console.error('Erro ao atualizar ordem com fotos:', error);
+      throw new InternalServerErrorException(
+        'Erro inesperado ao atualizar ordem. Tente novamente.',
       );
     }
   }

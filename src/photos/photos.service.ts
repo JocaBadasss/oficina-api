@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { Prisma, PrismaClient } from '@prisma/client';
+import * as fs from 'fs/promises';
 
 @Injectable()
 export class PhotosService {
@@ -40,5 +41,25 @@ export class PhotosService {
       where: { orderId },
       orderBy: { uploadedAt: 'desc' },
     });
+  }
+
+  async remove(
+    photoId: string,
+    prisma: Prisma.TransactionClient | PrismaClient = this.prisma,
+  ) {
+    const photo = await prisma.photo.findUnique({
+      where: { id: photoId },
+      select: { path: true },
+    });
+    if (!photo) throw new NotFoundException('Foto não encontrada.');
+
+    // exclui o arquivo do disco
+    try {
+      await fs.unlink(photo.path);
+    } catch {
+      console.warn(`Arquivo não encontrado no disco: ${photo.path}`);
+    }
+
+    return prisma.photo.delete({ where: { id: photoId } });
   }
 }

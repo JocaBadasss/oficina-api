@@ -43,8 +43,13 @@ export class ServiceOrdersController {
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() dto: UpdateServiceOrderDto) {
-    return this.service.update(id, dto);
+  @UseInterceptors(FilesInterceptor('files', 6, uploadConfig))
+  updateWithPhotos(
+    @Param('id') id: string,
+    @UploadedFiles() files: Express.Multer.File[],
+    @Body() dto: UpdateServiceOrderDto,
+  ) {
+    return this.service.updateWithPhotos(id, dto, files);
   }
 
   @Delete(':id')
