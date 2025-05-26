@@ -7,56 +7,72 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreateServiceReportDto } from './dto/create-service-report.dto';
 import { UpdateServiceReportDto } from './dto/update-service-report.dto';
 import { NotificationsService } from 'src/notifications/notifications.service';
+import { PhotosService } from 'src/photos/photos.service';
 
 @Injectable()
 export class ServiceReportsService {
   constructor(
     private prisma: PrismaService,
     private notificationsService: NotificationsService,
+    private photosService: PhotosService,
   ) {}
 
-  async create(data: CreateServiceReportDto) {
-    const existing = await this.prisma.serviceReport.findUnique({
-      where: { orderId: data.orderId },
-    });
-
-    if (existing) {
-      throw new ConflictException({
-        code: 'REPORT_ALREADY_EXISTS',
-        field: 'orderId',
-        message: 'Essa ordem de serviço já possui um relatório.',
+  async createAndFinalize(
+    orderId: string,
+    data: CreateServiceReportDto,
+    files: Express.Multer.File[],
+  ) {
+    return this.prisma.$transaction(async (tx) => {
+      const existing = await tx.serviceReport.findUnique({
+        where: { orderId },
       });
-    }
 
-    const order = await this.prisma.serviceOrder.findUnique({
-      where: { id: data.orderId },
-      include: { vehicle: true },
-    });
+      if (existing) {
+        throw new ConflictException({
+          code: 'REPORT_ALREADY_EXISTS',
+          field: 'orderId',
+          message: 'Essa ordem de serviço já possui um relatório.',
+        });
+      }
 
-    if (!order) {
-      throw new NotFoundException({
-        code: 'ORDER_NOT_FOUND',
-        field: 'orderId',
-        message: 'Ordem de serviço não encontrada.',
+      const order = await tx.serviceOrder.findUnique({
+        where: { id: orderId },
+        include: { vehicle: true },
       });
-    }
 
-    // Cria o relatório
-    const report = await this.prisma.serviceReport.create({ data });
+      if (!order) {
+        throw new NotFoundException({
+          code: 'ORDER_NOT_FOUND',
+          field: 'orderId',
+          message: 'Ordem de serviço não encontrada.',
+        });
+      }
 
-    // Atualiza a OS vinculada para FINALIZADO
-    await this.prisma.serviceOrder.update({
-      where: { id: data.orderId },
-      data: { status: 'FINALIZADO' },
+      await tx.serviceOrder.update({
+        where: { id: orderId },
+        data: { status: 'FINALIZADO' },
+      });
+
+      // Cria o relatório
+      const report = await tx.serviceReport.create({
+        data: {
+          ...data,
+          orderId,
+        },
+      });
+
+      for (const file of files) {
+        await this.photosService.create(file.filename, file.path, orderId, tx);
+      }
+
+      // 🔔 Notificação com fallback pra placa desconhecida
+      const plate = order.vehicle?.plate ?? 'placa não informada';
+      const msg = `📋 O serviço do veículo ${plate} foi finalizado.\n\nConfira o laudo completo:\n${process.env.APP_URL}/acompanhamento/${orderId}`;
+
+      await this.notificationsService.createAuto(orderId, msg);
+
+      return report;
     });
-
-    // 🔔 Notificação com fallback pra placa desconhecida
-    const plate = order.vehicle?.plate ?? 'placa não informada';
-    const msg = `📋 O serviço do veículo ${plate} foi finalizado.\n\nConfira o laudo completo:\nhttps://app.oficina.com/acompanhamento/${data.orderId}`;
-
-    await this.notificationsService.createAuto(data.orderId, msg);
-
-    return report;
   }
 
   async findByOrderId(orderId: string) {

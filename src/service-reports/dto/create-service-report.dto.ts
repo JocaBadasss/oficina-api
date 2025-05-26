@@ -1,9 +1,7 @@
-import { IsUUID, IsString } from 'class-validator';
+import { IsString, MinLength } from 'class-validator';
 
 export class CreateServiceReportDto {
-  @IsUUID(undefined, { message: 'orderId deve ser um UUID válido' })
-  orderId!: string;
-
   @IsString({ message: 'description deve ser uma string' })
+  @MinLength(1, { message: 'description não pode ficar vazio' })
   description!: string;
 }
