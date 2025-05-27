@@ -26,11 +26,11 @@ const options: ParseUUIDPipeOptions = {
     new HttpException('orderId inválido', HttpStatus.BAD_REQUEST),
 };
 @UseGuards(JwtAuthGuard, AdminGuard)
-@Controller('service-reports/:orderId')
+@Controller('service-reports')
 export class ServiceReportsController {
   constructor(private reportsService: ServiceReportsService) {}
 
-  @Post()
+  @Post(':orderId')
   @UseInterceptors(FilesInterceptor('files', 6, uploadConfig))
   async createAndFinalize(
     @Param('orderId', new ParseUUIDPipe(options))
