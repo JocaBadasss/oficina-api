@@ -10,6 +10,7 @@ import {
   UseFilters,
   UseInterceptors,
   UploadedFiles,
+  HttpCode,
 } from '@nestjs/common';
 import { ServiceOrdersService } from './service-orders.service';
 import { CreateServiceOrderDto } from './dto/create-service-order.dto';
@@ -20,9 +21,10 @@ import { PrismaExceptionFilter } from '../common/filters/prisma-exception.filter
 import { CreateFullServiceOrderDto } from './dto/CreateFullServiceOrderDto';
 import { FilesInterceptor } from '@nestjs/platform-express';
 import { uploadConfig } from 'src/photos/upload.config';
+import { ServiceOrderStatsDto } from './dto/service-order-stats.dto';
 
 @UseGuards(JwtAuthGuard, AdminGuard)
-@UseFilters(PrismaExceptionFilter)
+// @UseFilters(PrismaExceptionFilter)
 @Controller('service-orders')
 export class ServiceOrdersController {
   constructor(private service: ServiceOrdersService) {}
@@ -35,6 +37,17 @@ export class ServiceOrdersController {
   @Get()
   findAll() {
     return this.service.findAll();
+  }
+
+  @Get('stats')
+  @HttpCode(200)
+  findStats(): Promise<ServiceOrderStatsDto> {
+    return this.service.getStats();
+  }
+
+  @Get('stats/monthly')
+  getMonthlyStats() {
+    return this.service.getMonthlyStats();
   }
 
   @Get(':id')

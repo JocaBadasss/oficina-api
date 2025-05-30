@@ -20,6 +20,8 @@ import {
 } from './dto/create-service-order.dto';
 import { Prisma } from '@prisma/client';
 import { PhotosService } from 'src/photos/photos.service';
+import { ServiceOrderStatsDto } from './dto/service-order-stats.dto';
+import { format, subMonths } from 'date-fns';
 
 @Injectable()
 export class ServiceOrdersService {
@@ -162,7 +164,7 @@ export class ServiceOrdersService {
       photos: order.photos.map((photo) => ({
         id: photo.id,
         filename: photo.filename,
-        url: `${process.env.APP_URL}/uploads/${photo.filename}`,
+        url: `${process.env.BACKEND_URL}/uploads/${photo.filename}`,
       })),
     };
   }
@@ -613,5 +615,64 @@ export class ServiceOrdersService {
         'Erro inesperado ao atualizar ordem. Tente novamente.',
       );
     }
+  }
+
+  async getStats(): Promise<ServiceOrderStatsDto> {
+    const [openCount, closedCount] = await Promise.all([
+      this.prisma.serviceOrder.count({
+        where: {
+          status: { in: ['AGUARDANDO', 'EM_ANDAMENTO'] },
+        },
+      }),
+      this.prisma.serviceOrder.count({
+        where: {
+          status: 'FINALIZADO',
+        },
+      }),
+    ]);
+
+    return {
+      open: openCount,
+      closed: closedCount,
+    };
+  }
+
+  async getMonthlyStats() {
+    const fromDate = subMonths(new Date(), 11); // últimos 12 meses
+    const toDate = new Date();
+
+    const raw = await this.prisma.serviceOrder.findMany({
+      where: {
+        createdAt: {
+          gte: fromDate,
+          lte: toDate,
+        },
+      },
+      select: {
+        createdAt: true,
+      },
+    });
+
+    const grouped: Record<string, number> = {};
+
+    for (let i = 0; i < 12; i++) {
+      const refDate = subMonths(toDate, 11 - i);
+      const key = format(refDate, 'yyyy-MM');
+      grouped[key] = 0;
+    }
+
+    for (const order of raw) {
+      const key = format(order.createdAt, 'yyyy-MM');
+      if (grouped[key] !== undefined) {
+        grouped[key]++;
+      }
+    }
+
+    const result = Object.entries(grouped).map(([month, total]) => ({
+      month,
+      total,
+    }));
+
+    return result;
   }
 }

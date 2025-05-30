@@ -34,6 +34,7 @@ export class AuthController {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
+      path: '/',
       maxAge: 60 * 60 * 1000,
     });
 
@@ -41,6 +42,7 @@ export class AuthController {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
+      path: '/',
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 dias
     });
 
@@ -78,7 +80,11 @@ export class AuthController {
 
     return { message: 'Novo access token gerado!' };
   }
-
+  // @Get('refresh')
+  // refresh(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
+  //   // Simula erro 401 por refresh sempre falhar
+  //   throw new UnauthorizedException('Forçando falha de refresh para teste');
+  // }
   @Post('logout')
   logout(@Res({ passthrough: true }) res: Response) {
     res.clearCookie('accessToken');

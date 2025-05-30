@@ -13,7 +13,7 @@ async function bootstrap() {
   app.use(cookieParser());
 
   app.enableCors({
-    origin: process.env.CORS_ORIGIN, // ou seu domínio do front-end
+    origin: process.env.FRONTEND_URL, // ou seu domínio do front-end
     credentials: true, // 🔥 importante para cookies
   });
 
